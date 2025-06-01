@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz Web App</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    #login-container, #quiz-container {
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 18px;
+      border: none;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 18px;
+      border: none;
+      border-radius: 6px;
+      background: #9147ff;
+      color: white;
+      cursor: pointer;
+      margin: 6px 0;
+      transition: background 0.2s ease-in-out;
+    }
+
+    button:hover {
+      background: #772ce8;
+    }
+
+    .answer-btn {
+      font-weight: bold;
+    }
+
+    #logout-btn {
+      background: #ff4747;
+    }
+
+    #logout-btn:hover {
+      background: #e03a3a;
+    }
+
+    p {
+      font-size: 14px;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+
+    @media (max-width: 500px) {
+      body {
+        padding: 10px;
+      }
+
+      button {
+        font-size: 16px;
+        padding: 12px;
+      }
+
+      input[type="text"] {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Tela de Login -->
+  <div id="login-container">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Digite seu nome" />
+    <button id="login-btn">Entrar</button>
+    <p id="login-status"></p>
+  </div>
+
+  <!-- Tela de Quiz -->
+  <div id="quiz-container" style="display: none;">
+    <h2>Escolha sua resposta</h2>
+    <button class="answer-btn" data-answer="a">A</button>
+    <button class="answer-btn" data-answer="b">B</button>
+    <button class="answer-btn" data-answer="c">C</button>
+    <button class="answer-btn" data-answer="d">D</button>
+    <button id="logout-btn">Sair</button>
+    <p id="response-status"></p>
+  </div>
+
+  <!-- Socket.IO CDN -->
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+
+
+  <script>
+    const socket = io("http://localhost:3000"); // ajuste se for rodar em outro host
+
+    const loginContainer = document.getElementById('login-container');
+    const quizContainer = document.getElementById('quiz-container');
+    const loginStatus = document.getElementById('login-status');
+    const responseStatus = document.getElementById('response-status');
+    const usernameInput = document.getElementById('username');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    let currentUser = null;
+
+    window.addEventListener('load', () => {
+      const storedUser = localStorage.getItem("quiz_username");
+      if (storedUser) {
+        currentUser = storedUser;
+        showQuiz();
+      } else {
+        showLogin();
+      }
+    });
+
+    function showLogin() {
+      loginContainer.style.display = 'block';
+      quizContainer.style.display = 'none';
+      loginStatus.textContent = '';
+      responseStatus.textContent = '';
+    }
+
+    function showQuiz() {
+      loginContainer.style.display = 'none';
+      quizContainer.style.display = 'block';
+      responseStatus.textContent = `Logado como: ${currentUser}`;
+    }
+
+    loginBtn.addEventListener('click', () => {
+      const username = usernameInput.value.trim();
+      if (username.length < 3) {
+        loginStatus.textContent = "Nome deve ter pelo menos 3 letras.";
+        return;
+      }
+
+      localStorage.setItem("quiz_username", username);
+      currentUser = username;
+      showQuiz();
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem("quiz_username");
+      currentUser = null;
+      usernameInput.value = "";
+      showLogin();
+    });
+
+    function enviarResposta(answer) {
+      if (!currentUser) {
+        responseStatus.textContent = "Faça login para enviar sua resposta.";
+        return;
+      }
+
+      const payload = { username: currentUser, resposta: answer };
+      socket.emit("resposta_quiz", payload);
+      responseStatus.textContent = "Resposta enviada!";
+    }
+
+    document.querySelectorAll(".answer-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const answer = btn.getAttribute("data-answer");
+        enviarResposta(answer);
+      });
+    });
+  </script>
+</body>
+</html>
